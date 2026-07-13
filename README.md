@@ -44,12 +44,21 @@ where a user's own agent could broadcast anonymized purchase intent into
 the mesh instead of using open web search. It's recorded as a direction,
 not a commitment: nothing there is implemented.
 
+§12 extends that with three further mechanisms — blind sealed matching,
+agent-side accountability, and standing (persistent) mandates — designed
+so that the resulting discovery flow cannot degrade into a conventional,
+pay-for-placement comparison service. These are grounded in the project's
+[`botstop-carta-de-diseno.md`](./botstop-carta-de-diseno.md), a design
+charter describing botstop's commitment to *endogenous* ethics: rules
+that make bad-faith behavior structurally impossible or pointless, rather
+than rules enforced after the fact by an external judge.
+
 ## Status
 
 **Draft v0.1.** This is an early-stage proposal, not a finished standard.
 It is being developed and reference-implemented by
-[botstop.pro](https://botstop.pro), but the specification is open and
-MIT-licensed — no single entity controls it. That's the point.
+[botstop.pro](https://botstop.pro), but the specification itself belongs
+to no one — that's the point.
 
 Feedback, issues, and independent implementations are welcome.
 

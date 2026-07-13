@@ -1,9 +1,12 @@
 # Consent & Negotiation Protocol (CNP)
-### Draft Specification — v0.1 (normative) + v0.3 speculative extension
+### Draft Specification — v0.1 (normative) + v0.3/v0.4 speculative extensions
 
 **Status:** Draft. Sections 1–10 are the normative v0.1 draft. Section 11
-is a speculative, non-normative extension (Intent Broadcast Protocol)
-recorded for future evaluation — not implemented, not committed.
+(Intent Broadcast Protocol) and Section 12 (Blind Matching, Agent
+Accountability, and Standing Mandates) are speculative, non-normative
+extensions recorded for future evaluation — not implemented, not
+committed. Section 12 is designed to satisfy the principles set out in
+the project's Design Charter (`botstop-carta-de-diseno.md`).
 **Author:** Vicente (botstop.pro) — reference implementer
 **License:** MIT (this specification is free to implement by anyone)
 
@@ -180,12 +183,12 @@ verification at scale.
 
 ### 5.2 Status values
 
-| Status              | Meaning                                                |
-|---------------------|--------------------------------------------------------|
-| `paid_priority`     | Sender paid the fee; guaranteed delivery/priority.     |
-| `negotiated`        | Terms were agreed through automated negotiation.       |
-| `queued_free`       | Sender declined to pay; entered fallback queue.        |
-| `reputation_waived` | Fee waived due to sender reputation score.             |
+| Status            | Meaning                                                |
+|-------------------|----------------------------------------------------------|
+| `paid_priority`   | Sender paid the fee; guaranteed delivery/priority.     |
+| `negotiated`      | Terms were agreed through automated negotiation.       |
+| `queued_free`     | Sender declined to pay; entered fallback queue.        |
+| `reputation_waived` | Fee waived due to sender reputation score.           |
 
 ---
 
@@ -238,7 +241,7 @@ The reference implementation of both the Policy Server and a client
 library for Senders is maintained at:
 
 ```
-github.com/VBJ8/CNP-Spec               (this specification)
+github.com/botstop-pro/cnp-spec        (this specification)
 github.com/botstop-pro/cnp-server      (reference Policy Server)
 github.com/botstop-pro/cnp-client-js   (Node.js client library)
 ```
@@ -364,6 +367,144 @@ scored.
   commercial search or shopping assistants; it records a direction to
   revisit once inbound CNP usage (priority tolls, negotiation volume)
   provides real data to design against.
+
+---
+
+## 12. Speculative Extension — v0.4: Blind Matching, Agent Accountability,
+## and Standing Mandates
+
+**Status: speculative / not implemented.** This section extends §11 (IBP)
+with three mechanisms designed to satisfy the project's Design Charter
+(see `botstop-carta-de-diseno.md`): every mechanism below is chosen
+because manipulation is structurally impossible or economically pointless,
+not merely discouraged by policy. As with §11, this is a recorded
+direction for future evaluation, not a commitment to build on any
+particular timeline.
+
+### 12.1 Motivation
+
+A ranked comparison view — however well-intentioned, however framed as
+"AI-curated" — reintroduces the exact failure mode this project exists to
+avoid: whoever can influence the ranking algorithm (through payment,
+volume, or access) captures disproportionate visibility regardless of
+whether they best serve the person searching. A visible ranking is a
+market for influence, even when no one intends it to be.
+
+Section 12 describes three mechanisms whose combination is intended to
+make that market impossible to create, not merely against the rules.
+
+### 12.2 Blind matching (no visible ranking to influence)
+
+**Principle:** there is no ranking to buy, because no participant can see
+the offers of any other participant before committing to their own.
+
+**Mechanism sketch:**
+
+1. A user's standing intent (§12.4) is broadcast to eligible company
+   bots, scoped by category and minimum reputation threshold, exactly as
+   in the IBP flow (§11.2).
+2. Each responding company bot submits its offer to the Policy Server
+   without visibility into whether other bots have responded, how many,
+   or what they offered. Offers are sealed, analogous to a sealed-bid
+   auction.
+3. Only after the response window closes does the user's own agent
+   decode and compare the sealed offers, applying the curation principles
+   already defined in §11.4 (verdict, not list; explicit exclusion
+   reasons).
+4. No company-facing view of "your position relative to competitors"
+   exists at any point in the flow. There is nothing to optimize against
+   except the stated terms of the intent itself.
+
+This satisfies Design Charter Commitment 2 (structural impossibility over
+prohibition): nothing needs to forbid a company from trying to see a
+competitor's offer, because no channel through which that information
+could travel exists in the protocol.
+
+### 12.3 Agent accountability (the curator is measured by its own rule)
+
+**Principle:** the component that curates and recommends is subject to
+the same outcome-tracking applied to every company and user in the
+network — never exempt from measurement by virtue of being part of the
+platform itself.
+
+**Mechanism sketch:**
+
+- Every curated recommendation the user's agent surfaces is logged with
+  a reference ID at the moment of recommendation (before the outcome is
+  known).
+- The existing post-decision check-in (§11.4, point 3) is extended: its
+  result is attributed not only to the responding company's reputation
+  score (§6) but also to an **agent accuracy record** — a rolling measure
+  of how often this curation logic's top recommendation led to a
+  confirmed, discrepancy-free closure versus a rejected or disputed one.
+- This record is computed with the same formula transparency principle
+  as company/user reputation (§6, §11.5): the criteria are public, the
+  computation is auditable, and no discretionary override of an
+  individual score is permitted (Design Charter Commitment 1 and 4).
+- If curation logic changes (a new model version, a reweighted
+  algorithm), the accuracy record versions with it and prior performance
+  remains attributable to the version that produced it — so improvements
+  and regressions are traceable, not silently absorbed into a single
+  undifferentiated score.
+
+This is explicitly **not** a claim that curation quality can be reduced
+to a single trustworthy number — it is a mechanism to prevent the
+curation layer from being the one unmeasured actor in an otherwise fully
+measured system (Design Charter Commitment 5).
+
+### 12.4 Standing mandates (from one-off search to continuous delegation)
+
+**Principle:** an intent need not be a single query answered once — it
+can be a persistent instruction the user's agent continues to act on
+until satisfied, revoked, or expired.
+
+**Mechanism sketch (extends §11.2):**
+
+1. A user expresses an intent with an explicit **duration** and
+   **revisit policy**, not just point-in-time parameters — e.g. "notify
+   me only if a match beats these terms, check daily, expire in 60 days."
+2. The user's agent re-broadcasts the intent on the stated cadence
+   without requiring the user to re-initiate the search.
+3. The user is only interrupted when a response meets the pre-declared
+   bar — never for routine "no new matches" status updates. This mirrors
+   the fee-on-outcome principle already established (§11.3): attention is
+   spent only when something has actually happened worth spending it on.
+4. Standing mandates are subject to the same user-side reputation
+   symmetry as one-off intents (§11.5): a pattern of standing mandates
+   that generate matches but are never acted upon should be treated
+   analogously to abandoned one-off threads.
+
+### 12.5 Why this combination resists degrading into a conventional
+### comparison service
+
+- No visible ranking exists to be influenced (§12.2) — there is nothing
+  resembling "position" to purchase.
+- No participant can pay for exposure separately from meeting the
+  declared terms (§12.2) — sealed responses remove the incentive
+  structure that produces pay-for-placement.
+- The curation layer itself carries a measurable, versioned track record
+  (§12.3) — it cannot claim authority over outcomes it is not itself
+  accountable for.
+- Intent is not a single manipulable event but an ongoing mandate
+  (§12.4) — it sits outside the reach of point-in-time optimization
+  techniques (SEO, ad timing, impression buying) that depend on
+  influencing a single moment of visibility.
+
+### 12.6 Explicit non-goals for this draft
+
+- This section does not define the sealed-offer cryptographic scheme in
+  detail (e.g. commitment schemes, timing guarantees against a
+  Policy Server operator itself peeking) — that requires dedicated
+  security review before implementation.
+- This section does not define the exact formula for agent accuracy
+  scoring — only the principle that one must exist, be public, and be
+  version-attributed.
+- This section does not claim standing mandates are appropriate for
+  every intent category; some categories (urgent, one-off) may never
+  need this mechanism.
+- As with §11, none of this is committed to a build timeline. It is
+  recorded to be revisited once §11's foundational IBP flow has real
+  usage data.
 
 ---
 

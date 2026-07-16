@@ -53,6 +53,11 @@ charter describing botstop's commitment to *endogenous* ethics: rules
 that make bad-faith behavior structurally impossible or pointless, rather
 than rules enforced after the fact by an external judge.
 
+The current business model — a success-only fee replacing the old access
+toll, with a referral royalty mechanism designed to avoid any inflated or
+unverifiable payout — is documented separately in
+[`MODELO-ECONOMICO.md`](./MODELO-ECONOMICO.md).
+
 ## Status
 
 **Draft v0.1.** This is an early-stage proposal, not a finished standard.
@@ -66,10 +71,12 @@ Feedback, issues, and independent implementations are welcome.
 
 ```
 cnp-spec/
-├── SPEC.md          — the protocol specification (this is the core document)
-├── README.md        — this file
-├── CONTRIBUTING.md  — how to propose changes or implementations
-├── LICENSE          — MIT
+├── SPEC.md                      — the protocol specification (core document)
+├── botstop-carta-de-diseno.md   — design charter: endogenous ethics principles
+├── MODELO-ECONOMICO.md          — botstop.pro's current business/fee model
+├── README.md                    — this file
+├── CONTRIBUTING.md              — how to propose changes or implementations
+├── LICENSE                      — MIT
 └── examples/
     └── minimal-client.js   — minimal sender-side integration example
 ```

@@ -37,17 +37,65 @@ por éxito resuelve ambos problemas a la vez.
 
 ## 3. Tarifa por operación exitosa
 
-- **Importe:** fijo, no porcentual. Por defecto **30€** (o su
-  equivalente en la moneda asignada al usuario — ver §7).
-- **Configurabilidad:** el importe por defecto es ajustable a nivel de
-  plataforma; no se contempla, en esta versión, que cada usuario fije su
-  propio importe (a diferencia del extinto peaje de acceso).
+### 3.1 Estructura de dos tramos
+
+La tarifa no es un importe fijo puro ni un porcentaje puro: es una
+estructura de dos tramos con un único parámetro libre, diseñada para que
+un acuerdo de bajo valor nunca pague una tarifa desproporcionada ni
+quede en pérdida, sin reintroducir la complejidad de una tabla de tramos
+discrecional.
+
+```
+Si el valor declarado del acuerdo < 300€:
+    Tarifa = 10% del valor declarado
+En cualquier otro caso:
+    Tarifa = 30€ fijos
+```
+
+- **Tarifa fija de referencia:** 30€ (o su equivalente en la moneda
+  asignada al usuario — ver §7). Se aplica a todo acuerdo cuyo valor
+  declarado sea igual o superior al punto de cruce.
+- **Porcentaje del primer tramo:** 10% del valor declarado del acuerdo,
+  aplicado únicamente a acuerdos por debajo del punto de cruce.
+- **Punto de cruce:** se deriva matemáticamente de los dos parámetros
+  anteriores (tarifa fija ÷ porcentaje del primer tramo = 30€ ÷ 10% =
+  **300€**), no es un tercer valor elegido de forma independiente.
+- **Configurabilidad:** el importe fijo y el porcentaje del primer tramo
+  son ajustables a nivel de plataforma; el punto de cruce se recalcula
+  automáticamente a partir de ambos, nunca se fija de forma manual e
+  independiente.
 - **Hecho generador del cobro:** el cierre de una negociación confirmado
   por ambas partes a través del checkpoint de cierre ya existente
   (`closureStatus: "closed_agreed"`). Sin doble confirmación, no hay
   cobro.
+- **Valor declarado del acuerdo:** requiere que el checkpoint de cierre
+  capture también el valor económico del acuerdo (no solo el hecho
+  binario de que hubo acuerdo), declarado por ambas partes — nunca
+  autodeclarado unilateralmente sin contraste, para evitar que una parte
+  declare un valor artificialmente bajo solo para pagar menos tarifa.
 
-### 3.1 Verificación de sostenibilidad (con el importe por defecto)
+### 3.2 Por qué solo dos tramos, y no una tabla más granular
+
+Una tabla con múltiples tramos y porcentajes distintos (evaluada y
+descartada durante el diseño de este modelo) introduce fronteras
+elegidas de forma discrecional y difíciles de justificar una a una,
+además de resultar más compleja de comunicar y auditar. La estructura de
+dos tramos aquí definida tiene una única variable libre (el porcentaje
+del primer tramo); todo lo demás, incluido el punto de cruce, se deriva
+matemáticamente de esa variable y de la tarifa fija — coherente con el
+Compromiso 3 de la Carta de Diseño (transparencia del mecanismo: una
+regla simple y calculable por cualquiera, no una tabla que exige
+consultar múltiples casillas).
+
+No se añade un tercer tramo para acuerdos de muy alto valor. El coste
+real de mediar y verificar un acuerdo (checkpoint de cierre, cálculo de
+reputación, etc.) no crece con el tamaño económico del acuerdo cerrado;
+cobrar más solo porque el acuerdo es grande no correspondería a ningún
+coste real adicional de la plataforma — reproduciría el mismo defecto ya
+identificado y rechazado en el diseño de las regalías de recomendación
+(§5.1): una cifra sin correspondencia con un evento verificado.
+
+### 3.3 Verificación de sostenibilidad (con la tarifa fija de referencia)
 
 | Concepto | Importe |
 |---|---|
@@ -57,9 +105,40 @@ por éxito resuelve ambos problemas a la vez.
 | Reparto a plataforma (30% del bruto) | 9,00 € |
 | **Margen neto de plataforma** (tras comisión) | **≈7,83 €** |
 
-Este cálculo debe repetirse cada vez que se ajuste el importe por
-defecto, para confirmar que el margen neto de plataforma permanece
-positivo tras la comisión de la pasarela de pago.
+Este cálculo debe repetirse cada vez que se ajuste la tarifa fija de
+referencia o el porcentaje del primer tramo, para confirmar que el
+margen neto de plataforma permanece positivo tras la comisión de la
+pasarela de pago — de forma especialmente cuidadosa en el primer tramo,
+donde importes bajos (ej. un acuerdo de 50€, tarifa de 5€) pueden
+acercarse mucho más al coste fijo de la comisión de la pasarela.
+
+### 3.4 Valor mínimo de acuerdo
+
+Para acuerdos cuyo valor declarado sea inferior a **15€**, la
+plataforma no ofrece el servicio de mediación de cierre — el mismo
+criterio ya aplicado al extinto peaje de acceso, y por el mismo motivo:
+por debajo de cierto valor, la comisión de la pasarela de pago consume
+el margen de la plataforma hasta dejarlo en pérdida neta o en un margen
+tan estrecho que cualquier variación menor (ajuste de comisión,
+recargo por tarjeta internacional, redondeo) lo convertiría en pérdida
+real.
+
+**Verificación de sostenibilidad en el suelo mínimo:**
+
+| Concepto | Importe |
+|---|---|
+| Valor del acuerdo (mínimo) | 15,00 € |
+| Tarifa (10%, primer tramo) | 1,50 € |
+| Share plataforma (30%) | 0,45 € |
+| Comisión de pasarela de pago (≈2,9% + 0,30) | ≈0,3735 € |
+| **Margen neto de plataforma** | **≈0,08 €** |
+
+Este margen sigue siendo estrecho y debe vigilarse junto con el resto de
+parámetros del modelo (§9): si el coste real de la pasarela de pago
+aumenta, o si el volumen de transacciones en este rango es
+proporcionalmente alto, este suelo debe revisarse al alza antes de que
+se convierta en una fuente sistemática de pérdida, tal como ocurrió con
+la tarifa mínima del extinto peaje de acceso.
 
 ## 4. Reparto: fondo de regalías de recomendación
 
@@ -223,11 +302,16 @@ Los siguientes valores se establecen como punto de partida razonable,
 no como cifras permanentes. Cualquier cambio debe hacerse de forma
 pública y documentada, nunca de manera implícita:
 
-- Importe por defecto de la tarifa por éxito (30€).
+- Tarifa fija de referencia (30€) y porcentaje del primer tramo (10%) —
+  el punto de cruce (300€) se deriva automáticamente de ambos y no se
+  fija de forma independiente.
+- Valor mínimo de acuerdo para ofrecer mediación de cierre (15€).
 - Porcentaje de reparto plataforma/regalías (30%/70%).
 - Ventana de caducidad de bloques pendientes (12 meses).
-- Límite máximo de recomendados por usuario (valor exacto pendiente de
-  fijar).
+- Límite máximo de recomendados por usuario (**50**, fijado como techo
+  de prevención de fraude y carga operativa — no como mecanismo
+  antidesigualdad, ya cubierto por la correspondencia exacta 1:1 de
+  §5.1).
 
 ---
 
